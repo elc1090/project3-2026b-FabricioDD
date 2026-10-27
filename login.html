@@ -7,8 +7,12 @@
         body { font-family: Arial, sans-serif; display: flex; justify-content: center; margin-top: 50px; }
         .login-box { border: 1px solid #ccc; padding: 20px; border-radius: 8px; width: 300px; }
         input { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        button:hover { background-color: #218838; }
         #mensagem { color: red; margin-top: 10px; font-size: 14px; text-align: center; }
+        .links { margin-top: 15px; text-align: center; font-size: 14px; }
+        .links a { color: #007bff; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -25,6 +29,11 @@
         <button type="submit">Entrar</button>
     </form>
     <div id="mensagem"></div>
+
+    <!-- Novo link para a página de cadastro -->
+    <div class="links">
+        Não tem uma conta? <a href="cadastro.html">Cadastre-se aqui</a>
+    </div>
 </div>
 
 <script>
@@ -36,7 +45,6 @@
         const divMensagem = document.getElementById('mensagem');
 
         try {
-            // 1. Envia os dados para a API Node.js
             const resposta = await fetch('https://project3-2026b-fabriciodd.onrender.com/api/login', {
                 method: 'POST',
                 headers: {
@@ -47,18 +55,11 @@
 
             const dados = await resposta.json();
 
-            // 2. Verifica se o backend autorizou o login
             if (resposta.ok) {
-                // guarda o token no LocalStorage do navegador
                 localStorage.setItem('token', dados.token);
-                
-                // guardar o nome do usuário para mostrar na tela depois
                 localStorage.setItem('usuarioNome', dados.usuario.nome);
-
-                // Redireciona o usuário para a página principal do mapa
                 window.location.href = 'index.html';
             } else {
-                // Mostra a mensagem de erro que veio do backend (ex: "Email ou senha incorretos")
                 divMensagem.innerText = dados.erro;
             }
         } catch (erro) {
