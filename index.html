@@ -178,7 +178,7 @@
         // 2. BUSCAR PONTOS DA API
         async function carregarPontosNoMapa() {
             try {
-                const resposta = await fetch('http://localhost:3000/api/pontos');
+                const resposta = await fetch('https://project3-2026b-fabriciodd.onrender.com/api/pontos');
                 const pontos = await resposta.json();
 
                 if (!resposta.ok) return alert("Erro ao carregar ecopontos.");
@@ -273,7 +273,7 @@
             if (!confirm("Tem certeza que deseja excluir este ecoponto?")) return;
 
             try {
-                const resposta = await fetch(`http://localhost:3000/api/pontos/${idDoPonto}`, {
+                const resposta = await fetch(`https://project3-2026b-fabriciodd.onrender.com/api/pontos/${idDoPonto}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -316,7 +316,7 @@
 
             const pontoId = document.getElementById('input-id-escondido').value; 
             
-            const url = pontoId ? `http://localhost:3000/api/pontos/${pontoId}` : `http://localhost:3000/api/pontos`;
+            const url = pontoId ? `https://project3-2026b-fabriciodd.onrender.com/api/pontos/${pontoId}` : `https://project3-2026b-fabriciodd.onrender.com/api/pontos`;
             const metodo = pontoId ? 'PUT' : 'POST';
 
             try {
