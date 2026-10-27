@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Coleta de Resíduos</title>
+
+    <!-- CSS do Leaflet e do Leaflet Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; height: 100vh; }
+        #sidebar { width: 350px; padding: 20px; background-color: #f8f9fa; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1000; overflow-y: auto; }
+        #map { flex-grow: 1; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px;}
+        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;}
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 5px;}
+        button:hover { background-color: #218838; }
+        #btnCancelarEdicao { background-color: #dc3545; display: none; } 
+        .dica { font-size: 12px; color: #666; margin-top: 2px;}
+        
+        .popup-btn { padding: 5px; margin-top: 5px; width: 100%; font-size: 12px; cursor: pointer; border: none; border-radius: 3px; color: white; }
+        .btn-editar { background-color: #ffc107; color: black; }
+        .btn-excluir { background-color: #dc3545; }
+
+        .icone-partida {
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            background-color: #28a745; 
+        }
+
+        #btnLimparRota {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000; 
+            background-color: #dc3545;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            width: auto;
+        }
+        #btnLimparRota:hover { background-color: #c82333; }
+        .leaflet-routing-container { display: none !important; }
+
+        #btnAuth {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        border: 2px solid rgba(0,0,0,0.2);
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        transition: background 0.2s;
+        width: auto;
+    }
+    .btn-login { background-color: #007bff; color: white; }
+    .btn-login:hover { background-color: #0056b3; }
+    .btn-logout { background-color: red; color: #333; }
+    .btn-logout:hover { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2 id="tituloForm">Cadastrar Ecoponto</h2>
+        <form id="formCadastro">
+            <!-- Campo invisível fundamental para a edição funcionar -->
+            <input type="hidden" id="input-id-escondido" value="">
+
+            <div class="form-group">
+                <label>Nome do Local</label>
+                <input type="text" id="nome" required>
+            </div>
+            <div class="form-group">
+                <label>Endereço</label>
+                <input type="text" id="endereco" required>
+            </div>
+            <div class="form-group">
+                <label>Latitude</label>
+                <input type="number" step="any" id="latitude" required readonly>
+                <div class="dica">Clique no mapa para preencher</div>
+            </div>
+            <div class="form-group">
+                <label>Longitude</label>
+                <input type="number" step="any" id="longitude" required readonly>
+            </div>
+            <div class="form-group">
+                <label>Materiais Aceitos</label>
+                <input type="text" id="materiais" required>
+            </div>
+            <div class="form-group">
+                <label>Horário de Funcionamento</label>
+                <input type="text" id="horario" required>
+            </div>
+            <button type="submit" id="btnSalvar">Salvar Ecoponto</button>
+            <button type="button" id="btnCancelarEdicao" onclick="cancelarEdicao()">Cancelar Edição</button>
+        </form>
+    </div>
+
+    <div id="map"></div>
+    <button id="btnLimparRota" onclick="limparRota()">Cancelar Rota</button>
+   <button id="btnAuth"></button>
+
+    <!-- Bibliotecas JS: Leaflet e Routing Machine -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        // 1. CONFIGURAÇÃO DO MAPA
+        const map = L.map('map').setView([0, 0], 2); 
+        setTimeout(function() { map.invalidateSize(); }, 100);
+        
+        const mapaOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+        mapaOSM.addTo(map);
+
+        const layerPinos = L.layerGroup().addTo(map);
+        const layerPontinhos = L.layerGroup(); 
+
+        let marcadorTemporario = null;
+        let controleRota = null;
+        let ecopontosAtuais = []; 
+
+        function atualizarVisualizacaoZoom() {
+            const zoomAtual = map.getZoom();
+            if (zoomAtual < 8) {
+                if (map.hasLayer(layerPinos)) map.removeLayer(layerPinos);
+                if (!map.hasLayer(layerPontinhos)) map.addLayer(layerPontinhos);
+            } else {
+                if (!map.hasLayer(layerPinos)) map.addLayer(layerPinos);
+                if (map.hasLayer(layerPontinhos)) map.removeLayer(layerPontinhos);
+            }
+        }
+        
+        map.on('zoomend', atualizarVisualizacaoZoom);
+
+        function iniciarLocalizacao() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        map.setView([lat, lng], 13);
+                        L.circleMarker([lat, lng], { color: 'blue', radius: 8, fillOpacity: 0.5 })
+                            .addTo(map).bindPopup("Você está aqui!").openPopup();
+                    },
+                    error => {
+                        console.warn("Geolocalização negada/falhou.");
+                        map.setView([-14.235, -51.925], 4); // Centro do Brasil de fallback
+                    },
+                    { timeout: 5000 }
+                );
+            }
+        }
+
+        map.on('click', function(e) {
+            document.getElementById('latitude').value = e.latlng.lat;
+            document.getElementById('longitude').value = e.latlng.lng;
+            if (marcadorTemporario) { map.removeLayer(marcadorTemporario); }
+            marcadorTemporario = L.marker(e.latlng).addTo(map).bindPopup("Nova posição").openPopup();
+        });
+        
+        // 2. BUSCAR PONTOS DA API
+        async function carregarPontosNoMapa() {
+            try {
+                const resposta = await fetch('http://localhost:3000/api/pontos');
+                const pontos = await resposta.json();
+
+                if (!resposta.ok) return alert("Erro ao carregar ecopontos.");
+
+                ecopontosAtuais = pontos;
+
+                // Limpa AS DUAS camadas antes de desenhar os novos
+                layerPinos.clearLayers();
+                layerPontinhos.clearLayers();
+
+                ecopontosAtuais.forEach(ponto => {
+                    // ==========================================
+                    // 1. CRIA O PINO NORMAL (Para Zoom Perto)
+                    // ==========================================
+                    const marcador = L.marker([ponto.latitude, ponto.longitude]);
+                    
+                    const conteudoPopup = `
+                        <div style="font-family: Arial, sans-serif; min-width: 200px;">
+                            <h3 style="margin: 0 0 10px 0; color: #28a745;">${ponto.nome}</h3>
+                            <p style="margin: 5px 0;"><strong>📍 Endereço:</strong> ${ponto.endereco}</p>
+                            <p style="margin: 5px 0;"><strong>♻️ Materiais:</strong> ${ponto.materiais}</p>
+                            <p style="margin: 5px 0;"><strong>🕒 Horário:</strong> ${ponto.horario}</p>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+                            <p style="font-size: 11px; color: #888; margin: 0 0 10px 0;">
+                                Cadastrado por: ${ponto.autor}
+                            </p>
+                            <button class="popup-btn btn-editar" onclick="abrirEdicao(${ponto.id})">Editar</button>
+                            <button class="popup-btn btn-excluir" onclick="deletarPonto(${ponto.id})">Excluir</button>
+                        </div>
+                    `;
+                    marcador.bindPopup(conteudoPopup);
+                    layerPinos.addLayer(marcador);
+
+                    // ==========================================
+                    // 2. CRIA O PONTINHO (Para Zoom Longe) <-- CORREÇÃO AQUI
+                    // ==========================================
+                    const pontinho = L.circleMarker([ponto.latitude, ponto.longitude], {
+                        radius: 5,
+                        color: 'white',        // Borda branca
+                        weight: 1.5,
+                        fillColor: '#0000AA', 
+                        fillOpacity: 1
+                    });
+                    
+                    // Um popup simples só com o nome, orientando a dar zoom
+                    pontinho.bindPopup(`<b>${ponto.nome}</b><br><small>Aproxime para ver detalhes</small>`);
+                    layerPontinhos.addLayer(pontinho);
+                });
+
+                // FORÇA A VERIFICAÇÃO DO ZOOM LOGO APÓS CARREGAR OS DADOS <-- CORREÇÃO DO BUG DE ABERTURA
+                atualizarVisualizacaoZoom();
+
+            } catch (erro) {
+                console.error("Erro de comunicação com o backend:", erro);
+            }
+        }
+
+        // 3. EDIÇÃO E DELEÇÃO
+        function abrirEdicao(idDoPonto) {
+            const ponto = ecopontosAtuais.find(p => p.id === idDoPonto);
+            if (!ponto) return alert("Erro: Ponto não encontrado.");
+
+            document.getElementById('tituloForm').innerText = "Editar Ecoponto";
+            document.getElementById('btnSalvar').innerText = "Atualizar Ponto";
+            document.getElementById('btnCancelarEdicao').style.display = "block";
+
+            document.getElementById('input-id-escondido').value = ponto.id;
+            document.getElementById('nome').value = ponto.nome;
+            document.getElementById('endereco').value = ponto.endereco;
+            document.getElementById('latitude').value = ponto.latitude;
+            document.getElementById('longitude').value = ponto.longitude;
+            document.getElementById('materiais').value = ponto.materiais;
+            document.getElementById('horario').value = ponto.horario;
+        }
+
+        window.cancelarEdicao = function() {
+            document.getElementById('input-id-escondido').value = "";
+            document.getElementById('tituloForm').innerText = "Cadastrar Ecoponto";
+            document.getElementById('btnSalvar').innerText = "Salvar Ecoponto";
+            document.getElementById('btnCancelarEdicao').style.display = "none";
+            document.getElementById('formCadastro').reset();
+            if (marcadorTemporario) { map.removeLayer(marcadorTemporario); } 
+        }
+
+        async function deletarPonto(idDoPonto) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("Você precisa estar logado para excluir um ponto.");
+                return window.location.href = 'login.html';
+            }
+
+            if (!confirm("Tem certeza que deseja excluir este ecoponto?")) return;
+
+            try {
+                const resposta = await fetch(`http://localhost:3000/api/pontos/${idDoPonto}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const resultado = await resposta.json();
+
+                if (resposta.ok) {
+                    alert(resultado.mensagem);
+                    carregarPontosNoMapa(); // Recarrega o mapa limpando o antigo
+                } else {
+                    alert("Erro: " + resultado.erro);
+                    if (resposta.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                }
+            } catch (erro) {
+                alert("Erro ao tentar conectar com o servidor.");
+            }
+        }
+
+        // 4. SUBMIT DO FORMULÁRIO (CRIAR E ATUALIZAR)
+        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("Sua sessão expirou ou você não está logado.");
+                return window.location.href = 'login.html';
+            }
+
+            const dadosDoPonto = {
+                nome: document.getElementById('nome').value,
+                endereco: document.getElementById('endereco').value,
+                materiais: document.getElementById('materiais').value,
+                horario: document.getElementById('horario').value,
+                latitude: document.getElementById('latitude').value,
+                longitude: document.getElementById('longitude').value
+            };
+
+            const pontoId = document.getElementById('input-id-escondido').value; 
+            
+            const url = pontoId ? `http://localhost:3000/api/pontos/${pontoId}` : `http://localhost:3000/api/pontos`;
+            const metodo = pontoId ? 'PUT' : 'POST';
+
+            try {
+                const resposta = await fetch(url, {
+                    method: metodo,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosDoPonto)
+                });
+
+                const resultado = await resposta.json();
+
+                if (resposta.ok) {
+                    alert(pontoId ? 'Ponto atualizado com sucesso!' : 'Novo ponto cadastrado!');
+                    cancelarEdicao(); // Limpa e reseta os botões
+                    carregarPontosNoMapa(); // Atualiza o mapa na hora
+                } else {
+                    alert('Erro: ' + resultado.erro);
+                    if (resposta.status === 401 || resposta.status === 403) {
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html';
+                    }
+                }
+            } catch (erro) {
+                alert("Erro de conexão com o servidor local.");
+            }
+        });
+
+        // --- LÓGICA DE LOGIN E LOGOUT ---
+        
+        // Verifica se o usuário está logado e altera a interface de acordo
+        function verificarSessao() {
+            const token = localStorage.getItem('token');
+            const btnAuth = document.getElementById('btnAuth');
+            
+            if (!token) {
+                // MODO VISITANTE (Sem Token)
+                btnAuth.innerText = "Fazer Login";
+                btnAuth.className = "btn-login"; // Aplica o estilo azul
+                btnAuth.onclick = function() {
+                    window.location.href = 'login.html'; // Manda para o login
+                };
+                
+                // Opcional: Ocultar o formulário da barra lateral para visitantes
+                // document.getElementById('formCadastro').style.display = 'none';
+                // document.getElementById('tituloForm').innerText = "Faça login para cadastrar";
+            } else {
+                // MODO USUÁRIO LOGADO (Com Token)
+                btnAuth.innerText = "Sair da Conta";
+                btnAuth.className = "btn-logout"; // Aplica o estilo branco discreto
+                btnAuth.onclick = function() {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('usuarioNome');
+                    window.location.reload(); // Recarrega a página para voltar ao Modo Visitante
+                };
+            }
+        }
+
+        // Chama a verificação assim que a página carrega
+        verificarSessao();
+
+        // 5. INICIALIZAÇÃO
+        iniciarLocalizacao();
+        carregarPontosNoMapa();
+
+    </script>
+    
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Mapa de Reciclagem</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; margin-top: 50px; }
+        .login-box { border: 1px solid #ccc; padding: 20px; border-radius: 8px; width: 300px; }
+        input { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+        #mensagem { color: red; margin-top: 10px; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h2>Entrar no Sistema</h2>
+    <form id="formLogin">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" required>
+        
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required>
+        
+        <button type="submit">Entrar</button>
+    </form>
+    <div id="mensagem"></div>
+</div>
+
+<script>
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
+        const divMensagem = document.getElementById('mensagem');
+
+        try {
+            // 1. Envia os dados para a API Node.js
+            const resposta = await fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email, senha: senha })
+            });
+
+            const dados = await resposta.json();
+
+            // 2. Verifica se o backend autorizou o login
+            if (resposta.ok) {
+                // guarda o token no LocalStorage do navegador
+                localStorage.setItem('token', dados.token);
+                
+                // guardar o nome do usuário para mostrar na tela depois
+                localStorage.setItem('usuarioNome', dados.usuario.nome);
+
+                // Redireciona o usuário para a página principal do mapa
+                window.location.href = 'index.html';
+            } else {
+                // Mostra a mensagem de erro que veio do backend (ex: "Email ou senha incorretos")
+                divMensagem.innerText = dados.erro;
+            }
+        } catch (erro) {
+            divMensagem.innerText = 'Erro ao conectar com o servidor.';
+        }
+    });
+</script>
+
+</body>
+</html>

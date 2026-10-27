@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Mapa de Reciclagem</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; margin-top: 50px; background-color: #f4f4f9; }
+        .cadastro-box { border: 1px solid #ccc; padding: 25px; border-radius: 8px; width: 320px; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input { width: 100%; margin-bottom: 15px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px;}
+        button:hover { background-color: #0056b3; }
+        #mensagem { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
+        .erro { color: #dc3545; }
+        .sucesso { color: #28a745; }
+        .links { margin-top: 15px; text-align: center; font-size: 14px; }
+        .links a { color: #007bff; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="cadastro-box">
+    <h2 style="text-align: center; margin-top: 0; color: #333;">Criar Conta</h2>
+    <form id="formCadastroUser">
+        <label for="nome">Nome Completo</label>
+        <input type="text" id="nome" placeholder="Ex: Maria Silva" required>
+        
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" required>
+        
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required>
+
+        <label for="confirmaSenha">Confirmar Senha</label>
+        <input type="password" id="confirmaSenha" required>
+        
+        <button type="submit">Cadastrar</button>
+    </form>
+    
+    <!-- Div onde as mensagens de erro ou sucesso vão aparecer -->
+    <div id="mensagem"></div>
+
+    <div class="links">
+        Já tem uma conta? <a href="login.html">Faça login aqui</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('formCadastroUser').addEventListener('submit', async (e) => {
+        e.preventDefault(); // Evita recarregar a página
+
+        const nome = document.getElementById('nome').value;
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
+        const confirmaSenha = document.getElementById('confirmaSenha').value;
+        const divMensagem = document.getElementById('mensagem');
+
+        // 1. Reseta o visual da mensagem a cada tentativa
+        divMensagem.innerText = '';
+        divMensagem.className = '';
+
+        // 2. Validação simples no frontend
+        if (senha !== confirmaSenha) {
+            divMensagem.innerText = 'As senhas não coincidem!';
+            divMensagem.className = 'erro';
+            return;
+        }
+
+        try {
+            // 3. Envia os dados para a rota que criamos no Node.js
+            const resposta = await fetch('http://localhost:3000/api/registro', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ nome: nome, email: email, senha: senha })
+            });
+
+            const dados = await resposta.json();
+
+            // 4. Verifica a resposta do servidor
+            if (resposta.ok) {
+                divMensagem.innerText = 'Conta criada com sucesso! Redirecionando...';
+                divMensagem.className = 'sucesso';
+                
+                // Aguarda 2 segundos para o usuário ler a mensagem e manda para o Login
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            } else {
+                // Cai aqui se o email já estiver em uso, por exemplo
+                divMensagem.innerText = dados.erro;
+                divMensagem.className = 'erro';
+            }
+        } catch (erro) {
+            divMensagem.innerText = 'Erro ao conectar com o servidor.';
+            divMensagem.className = 'erro';
+            console.error(erro);
+        }
+    });
+</script>
+
+</body>
+</html>
