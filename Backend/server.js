@@ -8,8 +8,23 @@ require('dotenv').config();
 const app = express();
 
 // <-- 2. Liberação de acesso
+const origensPermitidas = [
+    'https://elc1090.github.io/project3-2026b-FabricioDD', // Domínio do GitHub Pages
+    'http://localhost:3000',      // Permite testes locais no Node.js
+    'http://127.0.0.1:5500'       // Permite testes locais via Live Server do VS Code
+];
+
 app.use(cors({
-    origin: '*' // Permite acesso de qualquer URL.
+    origin: function (origin, callback) {
+        // Permite requisições sem 'origin' (como Postman/cURL) ou que estejam na lista permitida
+        if (!origin || origensPermitidas.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Origem não permitida pelas regras de CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -115,7 +130,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ erro: 'Email ou senha incorretos.' });
         }
 
-        // 3. Se tudo estiver certo, gera o Token JWT (o "crachá") válido por 2 horas
+        // 3. Se tudo estiver certo, gera o Token JWT válido por 2 horas
         const token = jwt.sign(
             { id: usuario.id, nome: usuario.nome, is_admin: usuario.is_admin }, 
             process.env.JWT_SECRET,                 
@@ -138,7 +153,6 @@ app.post('/api/login', async (req, res) => {
 // ==========================================
 // ROTA PROTEGIDA: Inserir novo ponto de coleta
 // ==========================================
-// Note que adicionamos o 'verificarToken' bem no meio da declaração da rota!
 app.post('/api/pontos', verificarToken, async (req, res) => {
     try {
         // Recebemos os dados do formulário do frontend
@@ -270,7 +284,7 @@ function verificarToken(req, res, next) {
     }
 
     try {
-        // 2. Tenta abrir o crachá usando a nossa palavra secreta do .env
+        // 2. Tenta abrir o crachá usando a palavra secreta do .env
         const dadosDecodificados = jwt.verify(token, process.env.JWT_SECRET);
         
         // 3. Se deu certo, guardamos os dados do usuário (id, nome) dentro do pedido 
