@@ -14,8 +14,6 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use(express.json());
-
 // Configuração da conexão com o Banco de Dados (Neon.tech)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
