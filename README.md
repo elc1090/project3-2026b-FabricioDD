@@ -1,6 +1,6 @@
 <h1>Mapa de Coleta de Resíduos (Ecopoint Map)</h1>
 
-![Demo](./site.gif   "GIF do projeto.")
+<img src="./site.gif" alt="Visualização do projeto" title="GIF animado do projeto">
 
 <h2>Acesso</h2>
 <p>O projeto está publicado e pode ser acessado através do link:<br>
@@ -104,8 +104,6 @@ Quando a tabela de usuários foi ligada aos ecopontos, a busca inicial filtrada 
   <li>Documentação Oficial do Leaflet: <a href="https://leafletjs.com/reference.html">https://leafletjs.com/reference.html</a></li>
   <li>Documentação do Express.js: <a href="https://expressjs.com/">https://expressjs.com/</a></li>
   <li>Documentação do PostgreSQL (Neon): <a href="https://neon.tech/docs/introduction">https://neon.tech/docs/introduction</a></li>
-  <li>[PREENCHER: Adicione aqui vídeos tutoriais do YouTube que você tenha usado, se houver]</li>
-  <li>[PREENCHER: Dê o crédito a colegas que tenham ajudado em alguma dúvida ou teste do site]</li>
 </ul>
 
 <hr>
