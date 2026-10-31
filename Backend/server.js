@@ -7,9 +7,23 @@ require('dotenv').config();
 
 const app = express();
 
-// <-- 2. Liberação de acesso
+const origensPermitidas = [
+    'https://elc1090.github.io', // Domínio do GitHub Pages
+    'http://localhost:3000',      // Permite testes locais no Node.js
+    'http://127.0.0.1:5500'       // Permite testes locais via Live Server do VS Code
+];
+
 app.use(cors({
-    origin: '*' // Permite acesso de qualquer URL.
+    origin: function (origin, callback) {
+        // Permite requisições sem 'origin' (como Postman/cURL) ou que estejam na lista permitida
+        if (!origin || origensPermitidas.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Origem não permitida pelas regras de CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
